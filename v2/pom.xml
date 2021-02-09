@@ -609,6 +609,7 @@
         <module>pubsub-to-mongodb</module>
         <module>streaming-data-generator</module>
         <module>kafka-to-pubsub</module>
+        <module>rabbitmq-to-bigquery</module>
     </modules>
 
 </project>

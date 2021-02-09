@@ -1,0 +1,6 @@
+{
+  "image": "gcr.io/livelo-analytics/livelo-rabbitmq-to-bigquery",
+  "sdkInfo": {
+      "language": "JAVA"
+  }
+}

@@ -1,0 +1,7 @@
+{
+  "mainClass": "com.google.cloud.teleport.v2.templates.RabbitMqToBigQuery",
+  "classPath": "/template/rabbitmq-to-bigquery/*:/template/rabbitmq-to-bigquery/libs/*:/template/rabbitmq-to-bigquery/classes",
+  "defaultParameterValues": {
+    "labels": "{\"goog-dataflow-provided-template-type\":\"flex\", \"goog-dataflow-provided-template-name\":\"rabbitmq_to_bigquery\"}"
+  }
+}

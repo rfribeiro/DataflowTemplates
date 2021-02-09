@@ -1,0 +1,6 @@
+{
+  "image": "gcr.io/rabbitmq-integration-301417/test-rabbitmq2",
+  "sdkInfo": {
+      "language": "JAVA"
+  }
+}
