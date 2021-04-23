@@ -136,7 +136,7 @@ public class JdbcToBigQueryLiveloPubSub {
                 //.withJsonSchema(TableRowJsonCoder.encode(rows))
                 .withWriteDisposition(BigQueryIO.Write.WriteDisposition.WRITE_APPEND)
                 .withExtendedErrorInfo()
-                .withMethod(BigQueryIO.Write.Method.FILE_LOADS)
+                .withMethod(BigQueryIO.Write.Method.STREAMING_INSERTS)
                 .withCustomGcsTempLocation(options.getBigQueryLoadingTemporaryDirectory())
                 .to(options.getOutputTable()));
 
@@ -148,8 +148,8 @@ public class JdbcToBigQueryLiveloPubSub {
               return "{\"id\" : \"" + line + "\"}";
             }
           }))
-       .apply("Wait write on BigQuery", Wait.on(writeResult.getFailedInserts()))
-       .apply("Sending Pub/sub",PubsubIO.writeStrings().to(options.getOutputTopic()));
+       .apply("Wait write on BigQuery", Wait.on(writeResult.getFailedInsertsWithErr()))
+       .apply("Send message PubSub",PubsubIO.writeStrings().to(options.getOutputTopic()));
     // Execute the pipeline and return the result.
     PipelineResult res = pipeline.run();
 
