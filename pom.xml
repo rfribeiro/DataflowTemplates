@@ -105,6 +105,18 @@
     <proto-kms.version>0.87.0</proto-kms.version>
   </properties>
 
+  <dependencyManagement>
+    <dependencies>
+      <dependency>
+        <groupId>com.google.cloud</groupId>
+        <artifactId>libraries-bom</artifactId>
+        <version>20.1.0</version>
+        <type>pom</type>
+        <scope>import</scope>
+      </dependency>
+    </dependencies>
+  </dependencyManagement>
+
   <dependencies>
     <!-- Beam -->
     <dependency>
@@ -586,6 +598,10 @@
       <groupId>org.tensorflow</groupId>
       <artifactId>proto</artifactId>
       <version>${tensorflow.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>com.google.cloud</groupId>
+      <artifactId>google-cloud-secretmanager</artifactId>
     </dependency>
   </dependencies>
 
