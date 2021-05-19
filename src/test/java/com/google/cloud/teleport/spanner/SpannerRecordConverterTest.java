@@ -43,7 +43,10 @@ import org.junit.Test;
 public class SpannerRecordConverterTest {
 
   private DdlToAvroSchemaConverter converter =
-      new DdlToAvroSchemaConverter("booleans", "booleans");
+      new DdlToAvroSchemaConverter("booleans", "booleans", false);
+
+  private DdlToAvroSchemaConverter logicalTypeConverter =
+      new DdlToAvroSchemaConverter("booleans", "booleans", true);
 
   @Test
   public void simple() {
@@ -130,6 +133,42 @@ public class SpannerRecordConverterTest {
   }
 
   @Test
+  public void timestampLogical() {
+    Ddl ddl = Ddl.builder()
+        .createTable("users")
+        .column("id").int64().notNull().endColumn()
+        .column("date").date().endColumn()
+        .column("ts").timestamp().endColumn()
+        .column("ts_array").type(Type.array(Type.timestamp())).endColumn()
+        .primaryKey().asc("id").end()
+        .endTable()
+        .build();
+    Schema schema = logicalTypeConverter.convert(ddl).iterator().next();
+    SpannerRecordConverter recordConverter = new SpannerRecordConverter(schema);
+    Struct struct = Struct.newBuilder()
+        .set("id").to(1L)
+        .set("date").to(Date.fromYearMonthDay(2018, 2, 2))
+        .set("ts").to(Timestamp.ofTimeMicroseconds(10))
+        .set("ts_array").toTimestampArray(
+            Lists.newArrayList(null, null,
+                Timestamp.ofTimeMicroseconds(10L),
+                Timestamp.ofTimeSecondsAndNanos(10000, 100000),
+                Timestamp.parseTimestamp("1970-01-01T00:00:00Z"),
+                Timestamp.MIN_VALUE,
+                Timestamp.MAX_VALUE))
+        .build();
+
+    GenericRecord avroRecord = recordConverter.convert(struct);
+
+    assertThat(avroRecord.get("id"), equalTo(1L));
+    assertThat(avroRecord.get("date"), equalTo("2018-02-02"));
+    assertThat(avroRecord.get("ts"), equalTo(10L));
+    assertThat(avroRecord.get("ts_array"),
+        equalTo(Arrays.asList(null, null, 10L, 10000000100L, 0L,
+                    -62135596800000000L, 253402300799999999L)));
+  }
+
+  @Test
   public void arrays() {
     Ddl ddl = Ddl.builder()
         .createTable("users")
@@ -208,5 +247,52 @@ public class SpannerRecordConverterTest {
         avroRecord.get("numeric"),
         equalTo(ByteBuffer.wrap(NumericUtils.stringToBytes("-9305028.140032"))));
     assertThat(avroRecord.get("numeric_arr"), equalTo(expectedNumericArr));
+  }
+
+  @Test
+  public void json() {
+    Ddl ddl =
+        Ddl.builder()
+            .createTable("jsontable")
+            .column("id")
+            .int64()
+            .notNull()
+            .endColumn()
+            .column("json")
+            .type(Type.json())
+            .endColumn()
+            .column("json_arr")
+            .type(Type.array(Type.json()))
+            .endColumn()
+            .primaryKey()
+            .asc("id")
+            .end()
+            .endTable()
+            .build();
+    Schema schema = converter.convert(ddl).iterator().next();
+    SpannerRecordConverter recordConverter = new SpannerRecordConverter(schema);
+
+    String[] jsonArrValues = {
+      null, "[1,null,true,2.2523,\"hello\"]", null, "{\"a\":{\"a\":2.5},\"b\":null}"
+    };
+    Struct struct =
+        Struct.newBuilder()
+            .set("id")
+            .to(1L)
+            .set("json")
+            .to("\"hello my friend\"")
+            .set("json_arr")
+            .toStringArray(Lists.newArrayList(jsonArrValues))
+            .build();
+
+    GenericRecord avroRecord = recordConverter.convert(struct);
+
+    assertThat(avroRecord.get("id"), equalTo(1L));
+    assertThat(avroRecord.get("json"), equalTo("\"hello my friend\""));
+    assertThat(
+        avroRecord.get("json_arr"),
+        equalTo(
+            Arrays.asList(
+                null, "[1,null,true,2.2523,\"hello\"]", null, "{\"a\":{\"a\":2.5},\"b\":null}")));
   }
 }

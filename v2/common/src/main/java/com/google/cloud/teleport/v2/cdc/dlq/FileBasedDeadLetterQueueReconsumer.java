@@ -59,7 +59,6 @@ public class FileBasedDeadLetterQueueReconsumer extends PTransform<PBegin, PColl
       FileBasedDeadLetterQueueReconsumer.class);
 
   public static final Duration DEFAULT_RECHECK_PERIOD = Duration.standardMinutes(5);
-  public static final String TEMPORARY_HOLD_SUBDIRECTORY = "tmp";
 
   private final String dlqDirectory;
   private final Duration recheckPeriod;
@@ -88,7 +87,7 @@ public class FileBasedDeadLetterQueueReconsumer extends PTransform<PBegin, PColl
         .apply(FileIO.match()
             .filepattern(filePattern)
             .continuously(recheckPeriod, Growth.never()))
-        .apply(moveAndConsumeMatches());
+        .apply("ConsumeMatches", moveAndConsumeMatches());
 
   }
 
@@ -157,11 +156,24 @@ public class FileBasedDeadLetterQueueReconsumer extends PTransform<PBegin, PColl
       this.contentTag = contentTag;
     }
 
+    /* Gets the total number of times the record has circulated through the retry
+     * DeadLetterHeadQueue. If not found, it assumes the record has been through the
+     * DeadLetterHeadQueue once. If found, increments the count by 1;
+     */
+    long getRetryCountForRecord(ObjectNode resultNode) {
+      JsonNode errorCount = resultNode.get("_metadata_retry_count");
+      if (errorCount == null) {
+        return 1;
+      }
+      return errorCount.asLong() + 1;
+    }
+
     @ProcessElement
     public void process(
         @Element Metadata dlqFile,
         MultiOutputReceiver outputs) throws IOException {
-      if (dlqFile.resourceId().getFilename().contains("/tmp/")) {
+      LOG.info("Found DLQ File: {}", dlqFile.resourceId().toString());
+      if (dlqFile.resourceId().toString().contains("/tmp/.temp")) {
         return;
       }
 
@@ -180,6 +192,9 @@ public class FileBasedDeadLetterQueueReconsumer extends PTransform<PBegin, PColl
           }
           resultNode = (ObjectNode) jsonDLQElement.get("message");
           resultNode.put("_metadata_error", jsonDLQElement.get("error_message"));
+          // Populate the retried count.
+          long retryErrorCount = getRetryCountForRecord(resultNode);
+          resultNode.put("_metadata_retry_count", retryErrorCount);
           outputs.get(contentTag).output(resultNode.toString());
           reconsumedElements.inc();
         } catch (IOException e) {
