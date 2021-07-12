@@ -41,12 +41,16 @@ import org.slf4j.LoggerFactory;
 public class JdbcToBigQueryLiveloSecrets {
 
   private static String secretTranslator(String secretName) {
-    try (SecretManagerServiceClient client = SecretManagerServiceClient.create()) {
-      AccessSecretVersionResponse response = client.accessSecretVersion(secretName);
+    if (secretName.matches("projects/[0-9]+/secrets/.*")){
+      try (SecretManagerServiceClient client = SecretManagerServiceClient.create()) {
+        AccessSecretVersionResponse response = client.accessSecretVersion(secretName);
 
-      return response.getPayload().getData().toStringUtf8();
-    } catch (IOException e) {
-      throw new RuntimeException("Unable to read JDBC URL secret: " + secretName);
+        return response.getPayload().getData().toStringUtf8();
+      } catch (IOException e) {
+        throw new RuntimeException("Unable to read JDBC URL secret: " + secretName);
+      }
+    } else {
+      return secretName;
     }
   }
 
